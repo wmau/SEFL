@@ -1,0 +1,7 @@
+{
+    "python.pythonPath": "C:\\Users\\wm228\\Anaconda3\\envs\\ca_imaging\\python.exe",
+    "python.condaPath": "C:\\Users\\wm228\\Anaconda3\\Scripts\\conda.exe",
+    "python.linting.pylintEnabled": true,
+    "python.linting.enabled": true,
+    "python.envFile": "C:\\Users\\wm228\\PycharmProjects\\SEFL\\.env"  
+}
