@@ -59,7 +59,9 @@ def transient_rate_change(sessions, bin_size_in_seconds=30, ax=None):
     data = rearrange_neurons(cell_map, data)
     transients = []
     for session in data:
-        transients.append(np.mean(bin_transients(session, bin_size_in_seconds), axis=1))
+        transients.append(np.mean(bin_transients(session,
+                                                 bin_size_in_seconds),
+                                  axis=1))
 
     if ax is None:
         fig, ax = plt.subplots()

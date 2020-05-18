@@ -5,26 +5,34 @@ from CaImaging.util import bin_transients, filter_sessions
 from SEFL_utils import batch_load, load_cellmap, project_dirs
 from CaImaging.Assemblies import lapsed_activation
 
+project_df, project_path = project_dirs()
+
+#Depracated.
 def EnsembleReactivation(mouse, sessions):
-    df, path = project_dirs()
+    """
+    Plots activation of all assemblies across multiple sessions in a
+    somewhat messy way.
+
+    :param mouse:
+    :param sessions:
+    :return:
+    """
     keys = ['Mouse', 'Session']
     keywords = sessions
     keywords.append(mouse)
-    sessions = filter_sessions(df, keys, keywords, 'all')
+    sessions = filter_sessions(project_df, keys, keywords, 'all')
 
-    minian_outputs = []
-    for session_path in sessions['Path']:
-        minian_outputs.append(open_minian(session_path))
-
-    C = CellRegObj(sessions['CellRegPath'].iloc[0])
-    cell_map = trim_map(C.map, list(sessions['Session']), detected='everyday')
+    spikes = batch_load(sessions, 'S')
+    cell_map = load_cellmap(sessions, detected='everyday')
 
     lapsed = rearrange_neurons(cell_map[cell_map.columns[1]],
-                               [np.asarray(minian_outputs[1].S)])
+                               spikes[1])
     template = rearrange_neurons(cell_map[cell_map.columns[0]],
-                                 [np.asarray(minian_outputs[0].S)])
+                                 spikes[0])
 
-    lapsed_activation(template[0], lapsed)
+    activations, patterns, sorted_spikes, fig, axes = \
+        lapsed_activation(template[0], lapsed, percentile=99.9,
+                          plot=False)
 
     pass
 
