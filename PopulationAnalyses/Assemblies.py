@@ -90,8 +90,8 @@ class LapsedAssemblies:
 
 if __name__ == '__main__':
     #session_types = ['TraumaEnd', 'TraumaPost']
-    session_types = ['TraumaStart', 'TraumaPost']
-    AssemblyObj = LapsedAssemblies('pp2')
+    session_types = ['TraumaEnd', 'TraumaPost']
+    AssemblyObj = LapsedAssemblies('pp8')
     AssemblyObj.get_lapsed_assemblies(session_types[0],
                                       session_types[1:])
     AssemblyObj.single_lapsed_assembly()

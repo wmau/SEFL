@@ -2,12 +2,9 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="7918629d-4079-42bb-8340-5bf97dfe506e" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/codeStyles/codeStyleConfig.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/PopulationAnalyses/Assemblies.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/PopulationAnalyses/Similarity.py" beforeDir="false" afterPath="$PROJECT_DIR$/PopulationAnalyses/Similarity.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/PopulationAnalyses/Assemblies.py" beforeDir="false" afterPath="$PROJECT_DIR$/PopulationAnalyses/Assemblies.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/SEFL_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/SEFL_utils.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Scripts.py" beforeDir="false" afterPath="$PROJECT_DIR$/Scripts.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
