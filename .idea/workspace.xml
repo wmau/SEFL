@@ -4,7 +4,6 @@
     <list default="true" id="7918629d-4079-42bb-8340-5bf97dfe506e" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/PopulationAnalyses/Assemblies.py" beforeDir="false" afterPath="$PROJECT_DIR$/PopulationAnalyses/Assemblies.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/SEFL_utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/SEFL_utils.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -63,27 +62,6 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="CellReg" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <module name="SEFL" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$USER_HOME$/Documents/GitHub/CaImaging/CaImaging" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <option name="SCRIPT_NAME" value="$USER_HOME$/Documents/GitHub/CaImaging/CaImaging/CellReg.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="false" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
     <configuration name="Scripts" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="SEFL" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -126,6 +104,27 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="caimanmanager" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="SEFL" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$USER_HOME$/Anaconda3/envs/caiman/bin" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$USER_HOME$/Anaconda3/envs/caiman/bin/caimanmanager.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="util" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="SEFL" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -150,10 +149,10 @@
     <recent_temporary>
       <list>
         <item itemvalue="Python.Assemblies" />
+        <item itemvalue="Python.caimanmanager" />
         <item itemvalue="Python.Scripts" />
         <item itemvalue="Python.Similarity" />
         <item itemvalue="Python.util" />
-        <item itemvalue="Python.CellReg" />
       </list>
     </recent_temporary>
   </component>
@@ -203,7 +202,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/PopulationAnalyses/Assemblies.py</url>
-          <line>100</line>
+          <line>119</line>
           <option name="timeStamp" value="56" />
         </line-breakpoint>
       </breakpoints>
@@ -211,6 +210,7 @@
     <watches-manager>
       <configuration name="PythonConfigurationType">
         <watch expression="transients" />
+        <watch expression="self.activations" />
       </configuration>
     </watches-manager>
   </component>

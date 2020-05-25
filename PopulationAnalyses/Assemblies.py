@@ -8,6 +8,7 @@ from CaImaging.util import nan_array, get_transient_timestamps
 
 project_df, project_path = project_dirs()
 
+
 class LapsedAssemblies:
     def __init__(self, mouse):
         self.mouse = mouse
@@ -47,10 +48,8 @@ class LapsedAssemblies:
         self.assembly_sessions = sessions
         self.n_sessions = len(sessions)
         self.n_assemblies = self.patterns.shape[0]
-        pass
 
-
-    def single_lapsed_assembly(self):
+    def organize_assemblies(self):
         """
         Make a list (each element corresponding to a day) of
         (pattern, neuron, time) arrays.
@@ -58,43 +57,63 @@ class LapsedAssemblies:
         :return:
         """
         sort_order = np.argsort(np.abs(self.patterns), axis=1)
+        self.sorted_patterns = np.sort(np.abs(self.patterns), axis=1)
 
         self.sorted_spikes = []
         for session_spikes in self.spikes:
             # Preallocate an array.
-            t = session_spikes.shape[1]
             sorted_session = []
 
             # For each assembly, sort based on weight.
             for assembly, order in enumerate(sort_order):
                 sorted_spikes = session_spikes[order]
-                spiking, _, _ = get_transient_timestamps(sorted_spikes)
+                spiking, _, _ = get_transient_timestamps(
+                    sorted_spikes)
                 sorted_session.append(spiking)
 
             # Append to list of sessions' activities.
             self.sorted_spikes.append(sorted_session)
 
-
     def plot_single_lapsed_assembly(self, assembly_number):
-        fig, axs = plt.subplots(self.n_sessions, 1)
+        fig, axs = plt.subplots(self.n_sessions, 1, sharey='col',
+                                figsize=(12,18))
 
+        # Iterate through sessions.
         for ax, activations, spikes in zip(axs,
                                            self.activations,
                                            self.sorted_spikes):
-            ax.plot(activations[assembly_number], alpha=0.7)
-            ax2 = ax.twinx()
-            ax2.eventplot(spikes[assembly_number])
+            # Color spikes according to contribution.
+            color_array = np.ones((len(spikes[assembly_number]), 3))
+            color_array *= np.tile(
+                self.sorted_patterns[assembly_number], (3, 1)).T
+            color_array /= np.max(color_array)
+            color_array = 1 - color_array
 
+            # Alternatively, use alpha.
+            # color_array = np.zeros((len(spikes[assembly_number]), 4))
+            # color_array[:,3] = self.sorted_patterns[assembly_number]
+
+            ax2 = ax.twinx()
+            ax2.eventplot(spikes[assembly_number], colors=color_array)
+            ax.plot(activations[assembly_number], alpha=0.7,
+                     color='k')
+            ax.set_zorder(ax2.get_zorder() + 1)
+            ax.patch.set_visible(False)
+            ax.set_ylabel('Ensemble activation (z)')
+            ax2.set_ylabel('Neuron #')
+
+        ax.set_xlabel('Time (frames)')
         plt.show()
         pass
 
+
 if __name__ == '__main__':
-    #session_types = ['TraumaEnd', 'TraumaPost']
-    session_types = ['TraumaEnd', 'TraumaPost']
-    AssemblyObj = LapsedAssemblies('pp8')
+    # session_types = ['TraumaEnd', 'TraumaPost']
+    session_types = ['TraumaEnd', 'TraumaPost', 'MildStressor']
+    AssemblyObj = LapsedAssemblies('pp5')
     AssemblyObj.get_lapsed_assemblies(session_types[0],
-                                      session_types[1:])
-    AssemblyObj.single_lapsed_assembly()
+                                      session_types[1:], plot=False)
+    AssemblyObj.organize_assemblies()
     for i in range(AssemblyObj.n_assemblies):
         AssemblyObj.plot_single_lapsed_assembly(i)
 
