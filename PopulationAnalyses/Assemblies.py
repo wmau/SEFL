@@ -59,29 +59,35 @@ class LapsedAssemblies:
         sort_order = np.argsort(np.abs(self.patterns), axis=1)
         self.sorted_patterns = np.sort(np.abs(self.patterns), axis=1)
 
-        self.sorted_spikes = []
+        self.sorted_spike_times = []
+        self.sorted_spike_arrs = []
         for session_spikes in self.spikes:
             # Preallocate an array.
-            sorted_session = []
+            sorted_spike_times = []
+            sorted_spike_arrs = []
 
             # For each assembly, sort based on weight.
             for assembly, order in enumerate(sort_order):
                 sorted_spikes = session_spikes[order]
-                spiking, _, _ = get_transient_timestamps(
+                spiking, _, bool_arr = get_transient_timestamps(
                     sorted_spikes)
-                sorted_session.append(spiking)
+                sorted_spike_times.append(spiking)
+                sorted_spike_arrs.append(bool_arr)
 
             # Append to list of sessions' activities.
-            self.sorted_spikes.append(sorted_session)
+            self.sorted_spike_times.append(sorted_spike_times)
+            self.sorted_spike_arrs.append(sorted_spike_arrs)
 
     def plot_single_lapsed_assembly(self, assembly_number):
         fig, axs = plt.subplots(self.n_sessions, 1, sharey='col',
                                 figsize=(12,18))
 
         # Iterate through sessions.
-        for ax, activations, spikes in zip(axs,
-                                           self.activations,
-                                           self.sorted_spikes):
+        for ax, activations, spikes, session \
+                in zip(axs,
+                       self.activations,
+                       self.sorted_spike_times,
+                       self.assembly_sessions.Session):
             # Color spikes according to contribution.
             color_array = np.ones((len(spikes[assembly_number]), 3))
             color_array *= np.tile(
@@ -101,6 +107,7 @@ class LapsedAssemblies:
             ax.patch.set_visible(False)
             ax.set_ylabel('Ensemble activation (z)')
             ax2.set_ylabel('Neuron #')
+            ax.set_title(session + f' assembly #{assembly_number}')
 
         ax.set_xlabel('Time (frames)')
         plt.show()
@@ -109,7 +116,7 @@ class LapsedAssemblies:
 
 if __name__ == '__main__':
     # session_types = ['TraumaEnd', 'TraumaPost']
-    session_types = ['TraumaEnd', 'TraumaPost', 'MildStressor']
+    session_types = ['TraumaEnd', 'Baseline', 'TraumaPost']
     AssemblyObj = LapsedAssemblies('pp5')
     AssemblyObj.get_lapsed_assemblies(session_types[0],
                                       session_types[1:], plot=False)
