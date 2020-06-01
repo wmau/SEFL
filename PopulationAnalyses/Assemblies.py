@@ -15,23 +15,21 @@ class LapsedAssemblies:
         self.sessions = filter_sessions(project_df, 'Mouse',
                                         mouse)
 
-    def get_lapsed_assemblies(self, template_session_type,
-                              lapsed_session_types, nullhyp='circ',
+    def get_lapsed_assemblies(self, session_types, nullhyp='circ',
                               n_shuffles=1000, use_bool=True,
                               percentile=99, plot=False):
         """
         Plots activation of all assemblies across multiple sessions in a
         somewhat messy way.
 
-        :param mouse:
-        :param sessions:
-        :return:
+        session_types: list of strs
+            Sessions to analyze. The template session must be first.
         """
         # Get the sessions of interest.
         template_session = filter_sessions(self.sessions, 'Session',
-                                           template_session_type)
+                                           session_types[0])
         lapsed_sessions = filter_sessions(self.sessions, 'Session',
-                                          lapsed_session_types)
+                                          session_types[1:])
         sessions = template_session.append(lapsed_sessions)
 
         # Load sessions and cell map.
@@ -40,7 +38,7 @@ class LapsedAssemblies:
         self.S = rearrange_neurons(cell_map, S)
 
         # Get ensemble activation.
-        assemblies, spikes, _, _ = \
+        assemblies, spikes, = \
             lapsed_activation(self.S[0], self.S[1:],
                               nullhyp=nullhyp, n_shuffles=n_shuffles,
                               percentile=percentile, plot=plot,
@@ -120,18 +118,137 @@ class LapsedAssemblies:
 
         ax.set_xlabel('Time (frames)')
         plt.show()
-        pass
 
+
+    def plot_all_assemblies(self):
+        for n in range(self.n_assemblies):
+            self.plot_single_lapsed_assembly(n)
+
+
+def get_assemblies_by_mouse(mice, sessions, use_bool=True):
+    all_mice = {mouse: LapsedAssemblies(mouse) for mouse in mice}
+
+    for mouse_assemblies in all_mice.values():
+        print(f'Analyzing {mouse_assemblies.mouse}...')
+        sessions_ = handle_missing_data(mouse_assemblies.mouse, sessions)
+        try:
+            mouse_assemblies.get_lapsed_assemblies(sessions_,
+                                                   plot=False,
+                                                   use_bool=use_bool)
+
+            mouse_assemblies.organize_assemblies()
+        except:
+            print(f'{mouse_assemblies.mouse} failed.')
+
+    return all_mice
+
+
+def plot_reactivations(all_mice_assemblies, session_numbers):
+    # Initialize dictionary.
+    activations = {'template': [],
+                   'post': [],
+                   'mouse': [],
+                   'condition': []}
+
+    # For all sessions, take the mean of ensemble activation.
+    for assembly_class in all_mice_assemblies.values():
+        try:
+            for session_number, epoch in zip(session_numbers, ['template', 'post']):
+                activity = np.mean(assembly_class.activations[session_number], axis=1)
+                activations[epoch].extend(activity)
+
+            # Get mouse names and conditions (trauma or control).
+            mouse_name = np.repeat(assembly_class.mouse, assembly_class.n_assemblies)
+            condition = np.repeat(assembly_class.sessions.Group.iloc[0], assembly_class.n_assemblies)
+
+            activations['mouse'].extend(mouse_name)
+            activations['condition'].extend(condition)
+
+        except:
+            pass
+
+    # Get colors and also boolean condition array.
+    activations['colors'] = [[1, 0, 0] if c == 'trauma' else [0, 0, 1]
+                             for c in activations['condition']]
+    activations['trauma'] = [1 if c == 'trauma' else 0
+                             for c in activations['condition']]
+
+    # Array-ify.
+    activations = {key: np.asarray(item)
+                   for key, item in activations.items()}
+
+    # Plot control and trauma ensemble activations for template
+    # compared to a lapsed session.
+    fig, ax = plt.subplots()
+    trauma_animals = activations['trauma'] == 1
+    trauma = ax.scatter(activations['template'][trauma_animals],
+                        activations['post'][trauma_animals],
+                        c=activations['colors'][trauma_animals],
+                        label='Trauma')
+    control = ax.scatter(activations['template'][~trauma_animals],
+                         activations['post'][~trauma_animals],
+                         c=activations['colors'][~trauma_animals],
+                         label='Control')
+
+    # Label the animals.
+    for i, (txt, x, y) in enumerate(zip(activations['mouse'],
+                                        activations['template'],
+                                        activations['post'])):
+        ax.annotate(txt, (x, y))
+
+    ax.set_xlabel('Template session activation')
+    ax.set_ylabel('Post session activation')
+    ax.axis('equal')
+    ax.legend()
+
+    return activations
+
+
+def handle_missing_data(mouse, sessions):
+    if mouse == 'pp2':
+        if 'TraumaEnd' in sessions:
+            if 'TraumaStart' not in sessions:
+                print('Replaced TraumaEnd with TraumaStart for pp2')
+                sessions = ['TraumaStart' if x == 'TraumaEnd'
+                             else x
+                             for x in sessions]
+            else:
+                sessions.remove('TraumaEnd')
+                print('Removed TraumaEnd. '
+                      'New template session for pp2 is ' + sessions[0])
+    if mouse == 'pp7':
+        if 'TraumaStart' in sessions:
+            if 'TraumaEnd' not in sessions:
+                print('Replaced TraumaStart with TraumaEnd for pp7')
+                sessions = ['TraumaEnd' if x == 'TraumaStart'
+                            else x
+                            for x in sessions]
+            else:
+                sessions.remove('TraumaStart')
+                print('Removed TraumaStart. '
+                      'New template session for pp7 is ' + sessions[0])
+
+    return sessions
 
 if __name__ == '__main__':
     # session_types = ['TraumaEnd', 'TraumaPost']
-    session_types = ['TraumaEnd', 'Baseline', 'TraumaPost']
-    AssemblyObj = LapsedAssemblies('pp1')
-    AssemblyObj.get_lapsed_assemblies(session_types[0],
-                                      session_types[1:], plot=False,
-                                      use_bool=True)
-    AssemblyObj.organize_assemblies()
-    for i in range(AssemblyObj.n_assemblies):
-        AssemblyObj.plot_single_lapsed_assembly(i)
+    # AssemblyObj = LapsedAssemblies('pp7')
+    # AssemblyObj.get_lapsed_assemblies(session_types, plot=False,
+    #                                   use_bool=True)
+    # AssemblyObj.organize_assemblies()
+    # for i in range(AssemblyObj.n_assemblies):
+    #     AssemblyObj.plot_single_lapsed_assembly(i)
+
+    mice = ['pp1',
+            'pp2',
+            'pp4',
+            'pp5',
+            'pp6',
+            #'pp7',
+            'pp8']
+
+    sessions = ['TraumaEnd', 'TraumaPost']
+    assemblies = get_assemblies_by_mouse(mice,
+                                         sessions = sessions)
 
     pass
