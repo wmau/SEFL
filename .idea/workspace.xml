@@ -202,8 +202,13 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/PopulationAnalyses/Assemblies.py</url>
-          <line>253</line>
+          <line>272</line>
           <option name="timeStamp" value="56" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/PopulationAnalyses/Assemblies.py</url>
+          <line>260</line>
+          <option name="timeStamp" value="95" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

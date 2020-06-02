@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-
+import matplotlib.cm as cm
 from CaImaging.CellReg import *
 from CaImaging.util import bin_transients, filter_sessions, ScrollPlot
 from SEFL_utils import batch_load, load_cellmap, project_dirs
@@ -85,10 +85,12 @@ class LapsedAssemblies:
             self.sorted_bool_arrs.append(sorted_bool_arrs)
             self.sorted_S.append(sorted_S)
 
-    def plot_single_lapsed_assembly(self, assembly_number):
+    def plot_single_lapsed_assembly(self, assembly_number,
+                                    cmap='copper_r'):
         fig, axs = plt.subplots(self.n_sessions, 1, sharey='col',
                                 figsize=(12,18))
 
+        cmap_arr = cm.get_cmap(cmap)
         # Iterate through sessions.
         for ax, activations, spikes, session \
                 in zip(axs,
@@ -96,11 +98,9 @@ class LapsedAssemblies:
                        self.sorted_spike_times,
                        self.assembly_sessions.Session):
             # Color S according to contribution.
-            color_array = np.ones((len(spikes[assembly_number]), 3))
-            color_array *= np.tile(
-                self.sorted_patterns[assembly_number], (3, 1)).T
-            color_array /= np.max(color_array)
-            color_array = 1 - color_array
+            color_array = [cmap_arr(p)
+                           for p in self.sorted_patterns[assembly_number]]
+            color_array = np.asarray(color_array)
 
             # Alternatively, use alpha.
             # color_array = np.zeros((len(S[assembly_number]), 4))
@@ -119,18 +119,27 @@ class LapsedAssemblies:
         ax.set_xlabel('Time (frames)')
         plt.show()
 
+        return fig, axs
+
 
     def plot_all_assemblies(self):
+        figs = []
         for n in range(self.n_assemblies):
-            self.plot_single_lapsed_assembly(n)
+            fig = self.plot_single_lapsed_assembly(n)[0]
+            figs.append(fig)
 
 
-def get_assemblies_by_mouse(mice, sessions, use_bool=True):
+def get_assemblies_by_mouse(mice, sessions, use_bool=True,
+                            replace_missing_data=False):
     all_mice = {mouse: LapsedAssemblies(mouse) for mouse in mice}
 
     for mouse_assemblies in all_mice.values():
         print(f'Analyzing {mouse_assemblies.mouse}...')
-        sessions_ = handle_missing_data(mouse_assemblies.mouse, sessions)
+        if replace_missing_data:
+            sessions_ = handle_missing_data(mouse_assemblies.mouse,
+                                            sessions)
+        else:
+            sessions_ = sessions
         try:
             mouse_assemblies.get_lapsed_assemblies(sessions_,
                                                    plot=False,
@@ -199,6 +208,16 @@ def plot_reactivations(all_mice_assemblies, session_numbers):
     ax.set_xlabel('Template session activation')
     ax.set_ylabel('Post session activation')
     ax.axis('equal')
+    lims = [
+        np.min([ax.get_xlim(), ax.get_ylim()]),  # min of both axes
+        np.max([ax.get_xlim(), ax.get_ylim()]),  # max of both axes
+    ]
+
+    # now plot both limits against eachother
+    ax.plot(lims, lims, 'k-', alpha=0.75, zorder=0)
+    ax.set_aspect('equal')
+    ax.set_xlim(lims)
+    ax.set_ylim(lims)
     ax.legend()
 
     return activations
@@ -231,20 +250,20 @@ def handle_missing_data(mouse, sessions):
     return sessions
 
 if __name__ == '__main__':
-    # session_types = ['TraumaEnd', 'TraumaPost']
-    # AssemblyObj = LapsedAssemblies('pp7')
-    # AssemblyObj.get_lapsed_assemblies(session_types, plot=False,
-    #                                   use_bool=True)
-    # AssemblyObj.organize_assemblies()
-    # for i in range(AssemblyObj.n_assemblies):
-    #     AssemblyObj.plot_single_lapsed_assembly(i)
+    session_types = ['TraumaEnd', 'TraumaPost']
+    AssemblyObj = LapsedAssemblies('pp7')
+    AssemblyObj.get_lapsed_assemblies(session_types, plot=False,
+                                      use_bool=True)
+    AssemblyObj.organize_assemblies()
+    for i in range(AssemblyObj.n_assemblies):
+        AssemblyObj.plot_single_lapsed_assembly(i)
 
     mice = ['pp1',
             'pp2',
             'pp4',
             'pp5',
             'pp6',
-            #'pp7',
+            'pp7',
             'pp8']
 
     sessions = ['TraumaEnd', 'TraumaPost']
