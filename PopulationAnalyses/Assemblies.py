@@ -1,10 +1,17 @@
 import matplotlib.pyplot as plt
+plt.rcParams['pdf.fonttype'] = 42
+plt.rcParams['svg.fonttype'] = 'none'
+plt.rcParams['text.usetex'] = False
+plt.rcParams.update({'font.size': 12})
 import matplotlib.cm as cm
 from CaImaging.CellReg import *
 from CaImaging.util import bin_transients, filter_sessions, ScrollPlot
 from SEFL_utils import batch_load, load_cellmap, project_dirs
-from CaImaging.Assemblies import lapsed_activation
-from CaImaging.util import nan_array, get_transient_timestamps
+from CaImaging.Assemblies import lapsed_activation, \
+    preprocess_multiple_sessions
+from CaImaging.util import nan_array, get_transient_timestamps, sync_data
+import pickle as pkl
+from datetime import datetime
 
 project_df, project_path = project_dirs()
 
@@ -17,7 +24,8 @@ class LapsedAssemblies:
 
     def get_lapsed_assemblies(self, session_types, nullhyp='circ',
                               n_shuffles=1000, use_bool=True,
-                              percentile=99, plot=False):
+                              smooth_factor=5, percentile=99,
+                              z_method='global'):
         """
         Plots activation of all assemblies across multiple sessions in a
         somewhat messy way.
@@ -32,43 +40,54 @@ class LapsedAssemblies:
                                           session_types[1:])
         sessions = template_session.append(lapsed_sessions)
 
+        try:
+            data = self.load_and_verify(sessions)
+            for key in data:
+                setattr(self, key, data[key])
+
+            return
+        except:
+            pass
+
         # Load sessions and cell map.
         S = batch_load(sessions, 'S')
         cell_map = load_cellmap(sessions, detected='everyday')
         self.S = rearrange_neurons(cell_map, S)
+        self.spikes = \
+            preprocess_multiple_sessions(self.S,
+                                         smooth_factor=smooth_factor,
+                                         z_method=z_method,
+                                         use_bool=use_bool)
 
         # Get ensemble activation.
-        assemblies, spikes, = \
-            lapsed_activation(self.S[0], self.S[1:],
-                              nullhyp=nullhyp, n_shuffles=n_shuffles,
-                              percentile=percentile, plot=plot,
-                              use_bool=use_bool)
+        self.assemblies= \
+            lapsed_activation(self.spikes['processed'], nullhyp=nullhyp,
+                              n_shuffles=n_shuffles,
+                              percentile=percentile)
 
-        self.activations = assemblies['activations']
-        self.patterns = assemblies['patterns']
-        self.S_normalized = spikes['S_normalized']
-        self.bool_arr = spikes['bool_arr']
-        self.spike_times = spikes['spike_times']
         self.assembly_sessions = sessions
         self.n_sessions = len(sessions)
-        self.n_assemblies = self.patterns.shape[0]
+        self.n_assemblies = self.assemblies['patterns'].shape[0]
 
     def organize_assemblies(self):
         """
         Make a list (each element corresponding to a day) of
-        (pattern, neuron, time) arrays.
+        (pattern, neuron, time) arrays. Sort by order of weight in
+        the assembly models.
 
         :return:
         """
-        sort_order = np.argsort(np.abs(self.patterns), axis=1)
-        self.sorted_patterns = np.sort(np.abs(self.patterns), axis=1)
+        sort_order = np.argsort(np.abs(self.assemblies['patterns']), axis=1)
+        self.sorted_data = dict()
 
-        self.sorted_spike_times = []
-        self.sorted_bool_arrs = []
-        self.sorted_S = []
-        for spike_times, bool_arr, S in zip(self.spike_times,
-                                            self.bool_arr,
-                                            self.S_normalized):
+        self.sorted_data['patterns'] = np.sort(np.abs(self.assemblies['patterns']), axis=1)
+
+        self.sorted_data['spike_times'] = []
+        self.sorted_data['bool_arrs'] = []
+        self.sorted_data['S'] = []
+        for spike_times, bool_arr, S in zip(self.spikes['spike_times'],
+                                            self.spikes['bool_arrs'],
+                                            self.spikes['S']):
             # Preallocate an array.
             sorted_spike_times = []
             sorted_bool_arrs = []
@@ -81,26 +100,33 @@ class LapsedAssemblies:
                 sorted_S.append(S[order])
 
             # Append to list of sessions' activities.
-            self.sorted_spike_times.append(sorted_spike_times)
-            self.sorted_bool_arrs.append(sorted_bool_arrs)
-            self.sorted_S.append(sorted_S)
+            self.sorted_data['spike_times'].append(sorted_spike_times)
+            self.sorted_data['bool_arrs'].append(sorted_bool_arrs)
+            self.sorted_data['S'].append(sorted_S)
+
 
     def plot_single_lapsed_assembly(self, assembly_number,
-                                    cmap='copper_r'):
+                                    cmap='copper_r', fps=15):
         fig, axs = plt.subplots(self.n_sessions, 1, sharey='col',
-                                figsize=(12,18))
+                                figsize=(12, 18))
 
         cmap_arr = cm.get_cmap(cmap)
         # Iterate through sessions.
         for ax, activations, spikes, session \
                 in zip(axs,
-                       self.activations,
-                       self.sorted_spike_times,
+                       self.assemblies['activations'],
+                       self.sorted_data['spike_times'],
                        self.assembly_sessions.Session):
             # Color S according to contribution.
             color_array = [cmap_arr(p)
-                           for p in self.sorted_patterns[assembly_number]]
+                           for p in
+                           self.sorted_data['patterns'][assembly_number]]
             color_array = np.asarray(color_array)
+
+            # Get time vector.
+            n_samples = len(activations[assembly_number])
+            t = range(n_samples)
+            t_labels = np.linspace(0, np.round(n_samples, -2), 5)
 
             # Alternatively, use alpha.
             # color_array = np.zeros((len(S[assembly_number]), 4))
@@ -108,15 +134,32 @@ class LapsedAssemblies:
 
             ax2 = ax.twinx()
             ax2.eventplot(spikes[assembly_number], colors=color_array)
-            ax.plot(activations[assembly_number], alpha=0.7,
-                     color='k')
+            ax.plot(t, activations[assembly_number], alpha=0.7,
+                    color='k')
+            ax.set_xticks(t_labels)
+            ax.set_xticklabels(np.round(t_labels / fps))
+
             ax.set_zorder(ax2.get_zorder() + 1)
             ax.patch.set_visible(False)
-            ax.set_ylabel('Ensemble activation (z)')
-            ax2.set_ylabel('Neuron #')
+            ax.set_ylabel('Ensemble activation (AU)')
+            ax2.set_ylabel('Neuron #, sorted by ensemble membership weight')
             ax.set_title(session + f' assembly #{assembly_number}')
 
-        ax.set_xlabel('Time (frames)')
+        # Where we have data, fill in regions where the mouse is
+        # stationary.
+        ymax = np.max([ax.get_ylim()[1] for ax in axs])
+        for ax, behavior in zip(axs, self.behavior):
+            try:
+                n_samples = len(behavior)
+                t = range(n_samples)
+
+                freezing = behavior.Freezing
+                ax.fill_between(t, 0, ymax, where=freezing>0,
+                                color='r', alpha=0.5)
+            except:
+                pass
+
+        ax.set_xlabel('Time (s)')
         plt.show()
 
         return fig, axs
@@ -128,8 +171,76 @@ class LapsedAssemblies:
             fig = self.plot_single_lapsed_assembly(n)[0]
             figs.append(fig)
 
+        return figs
+
+
+    def align_to_behavior(self):
+        sessions = self.assembly_sessions
+        miniscope_cams = list(self.assembly_sessions['MiniscopeCam'])
+        behavior_cams = list(self.assembly_sessions['BehaviorCam'])
+
+        # Build lists of file names for alignment.
+        get_behav = lambda path: glob.glob(os.path.join(path,
+                                                        '*Output.csv'))
+        behavior_csv_fnames = [get_behav(session)[0]
+                               if get_behav(session)
+                               else None
+                               for session in sessions.Path]
+        minian_fnames = [path for path in sessions.Path]
+        timestamp_fnames = [os.path.join(session, 'timestamp.dat')
+                            for session in sessions.Path]
+
+        # Align.
+        self.behavior = []
+        for timestamp_fname, behavior_fname, minian_fname, \
+            miniscope_cam, behavior_cam \
+                in zip(timestamp_fnames, behavior_csv_fnames,
+                       minian_fnames, miniscope_cams, behavior_cams):
+            try:
+                self.behavior.append(sync_data(behavior_fname,
+                                               minian_fname,
+                                               timestamp_fname,
+                                               miniscope_cam=miniscope_cam,
+                                               behav_cam=behavior_cam)[0])
+            except:
+                self.behavior.append(None)
+                print(minian_fname + ' failed to sync behavior.')
+
+
+    def load_and_verify(self, sessions):
+        pickled_fnames = glob.glob(os.path.join(sessions.Path.iloc[0],
+                                                'assembly_data*.pkl'))[::-1]
+        for pickled_data in pickled_fnames:
+            with open(pickled_data, 'rb') as file:
+                data = pkl.load(file)
+
+            if all(sessions['Path'].values == data['assembly_sessions']['Path'].values):
+                print('Using ' + pickled_data + '.')
+                return data
+            else:
+                print(pickled_data + ' did not match requested sessions.')
+
+        return None
+
+
+
+    def save_data(self, save_path=None):
+        data_as_dict = vars(self)
+        now = datetime.now()
+        dt_string = now.strftime("%m_%d_%Y")
+
+        if save_path is None:
+            save_path = os.path.join(self.assembly_sessions.Path.iloc[0],
+                                     'assembly_data_' +
+                                     dt_string +
+                                     '.pkl')
+
+        with open(save_path, 'wb') as file:
+            pkl.dump(data_as_dict, file)
+
 
 def get_assemblies_by_mouse(mice, sessions, use_bool=True,
+                            smooth_factor=5, z_method='global',
                             replace_missing_data=False):
     all_mice = {mouse: LapsedAssemblies(mouse) for mouse in mice}
 
@@ -142,10 +253,13 @@ def get_assemblies_by_mouse(mice, sessions, use_bool=True,
             sessions_ = sessions
         try:
             mouse_assemblies.get_lapsed_assemblies(sessions_,
-                                                   plot=False,
-                                                   use_bool=use_bool)
+                                                   use_bool=use_bool,
+                                                   smooth_factor=smooth_factor,
+                                                   z_method=z_method)
 
             mouse_assemblies.organize_assemblies()
+            mouse_assemblies.align_to_behavior()
+
         except:
             print(f'{mouse_assemblies.mouse} failed.')
 
@@ -163,7 +277,7 @@ def plot_reactivations(all_mice_assemblies, session_numbers):
     for assembly_class in all_mice_assemblies.values():
         try:
             for session_number, epoch in zip(session_numbers, ['template', 'post']):
-                activity = np.mean(assembly_class.activations[session_number], axis=1)
+                activity = np.mean(assembly_class.assemblies['activations'][session_number], axis=1)
                 activations[epoch].extend(activity)
 
             # Get mouse names and conditions (trauma or control).
@@ -249,14 +363,17 @@ def handle_missing_data(mouse, sessions):
 
     return sessions
 
+
 if __name__ == '__main__':
     session_types = ['TraumaEnd', 'TraumaPost']
-    AssemblyObj = LapsedAssemblies('pp7')
-    AssemblyObj.get_lapsed_assemblies(session_types, plot=False,
-                                      use_bool=True)
+    AssemblyObj = LapsedAssemblies('pp5')
+    AssemblyObj.get_lapsed_assemblies(session_types,
+                                      use_bool=True,
+                                      smooth_factor=5,
+                                      z_method='global')
     AssemblyObj.organize_assemblies()
-    for i in range(AssemblyObj.n_assemblies):
-        AssemblyObj.plot_single_lapsed_assembly(i)
+    AssemblyObj.align_to_behavior()
+    AssemblyObj.plot_all_assemblies()
 
     mice = ['pp1',
             'pp2',
@@ -266,8 +383,23 @@ if __name__ == '__main__':
             'pp7',
             'pp8']
 
-    sessions = ['TraumaEnd', 'TraumaPost']
+    sessions = ['TraumaStart', 'TraumaPost']
     assemblies = get_assemblies_by_mouse(mice,
                                          sessions = sessions)
+
+    x = assemblies['trauma'] / 5
+    y = assemblies['post']
+
+    def rand_jitter(arr):
+        stdev = .1 * (max(arr) - min(arr))
+        return arr + np.random.randn(len(arr)) * stdev
+
+
+    fig, ax = plt.subplots()
+    ax.scatter(rand_jitter(x), y)
+    ax.set_xticks([0, 0.2])
+    ax.set_xticklabels(['Control', 'Trauma'])
+    ax.set_ylabel('Mean reactivation rate')
+    ax.axis('equal')
 
     pass
