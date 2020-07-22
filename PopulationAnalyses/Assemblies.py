@@ -5,11 +5,10 @@ plt.rcParams['text.usetex'] = False
 plt.rcParams.update({'font.size': 12})
 import matplotlib.cm as cm
 from CaImaging.CellReg import *
-from CaImaging.util import bin_transients, filter_sessions, ScrollPlot
+from CaImaging.util import filter_sessions, distinct_colors, sync_data
 from SEFL_utils import batch_load, load_cellmap, project_dirs
 from CaImaging.Assemblies import lapsed_activation, \
     preprocess_multiple_sessions
-from CaImaging.util import nan_array, get_transient_timestamps, sync_data
 import pickle as pkl
 from datetime import datetime
 
@@ -235,13 +234,14 @@ class LapsedAssemblies:
                                      dt_string +
                                      '.pkl')
 
+        print(f'Saving {save_path}')
         with open(save_path, 'wb') as file:
             pkl.dump(data_as_dict, file)
 
 
 def get_assemblies_by_mouse(mice, sessions, use_bool=True,
                             smooth_factor=5, z_method='global',
-                            replace_missing_data=False):
+                            replace_missing_data=False, save=False):
     all_mice = {mouse: LapsedAssemblies(mouse) for mouse in mice}
 
     for mouse_assemblies in all_mice.values():
@@ -259,6 +259,9 @@ def get_assemblies_by_mouse(mice, sessions, use_bool=True,
 
             mouse_assemblies.organize_assemblies()
             mouse_assemblies.align_to_behavior()
+
+            if save:
+                mouse_assemblies.save_data()
 
         except:
             print(f'{mouse_assemblies.mouse} failed.')
@@ -365,15 +368,15 @@ def handle_missing_data(mouse, sessions):
 
 
 if __name__ == '__main__':
-    session_types = ['TraumaEnd', 'TraumaPost']
-    AssemblyObj = LapsedAssemblies('pp5')
-    AssemblyObj.get_lapsed_assemblies(session_types,
-                                      use_bool=True,
-                                      smooth_factor=5,
-                                      z_method='global')
-    AssemblyObj.organize_assemblies()
-    AssemblyObj.align_to_behavior()
-    AssemblyObj.plot_all_assemblies()
+    # session_types = ['TraumaEnd', 'TraumaPost']
+    # AssemblyObj = LapsedAssemblies('pp5')
+    # AssemblyObj.get_lapsed_assemblies(session_types,
+    #                                   use_bool=True,
+    #                                   smooth_factor=5,
+    #                                   z_method='global')
+    # AssemblyObj.organize_assemblies()
+    # AssemblyObj.align_to_behavior()
+    # AssemblyObj.plot_all_assemblies()
 
     mice = ['pp1',
             'pp2',
@@ -383,20 +386,22 @@ if __name__ == '__main__':
             'pp7',
             'pp8']
 
-    sessions = ['TraumaStart', 'TraumaPost']
+    sessions = ['TraumaEnd', 'TraumaPost']
     assemblies = get_assemblies_by_mouse(mice,
-                                         sessions = sessions)
+                                         sessions = sessions, save=False)
+    assemblies = plot_reactivations(assemblies, [0,1])
 
     x = assemblies['trauma'] / 5
     y = assemblies['post']
+    colors = distinct_colors(len(mice))
+    c = [colors[mice.index(mouse)] for mouse in assemblies['mouse']]
 
     def rand_jitter(arr):
         stdev = .1 * (max(arr) - min(arr))
         return arr + np.random.randn(len(arr)) * stdev
 
-
     fig, ax = plt.subplots()
-    ax.scatter(rand_jitter(x), y)
+    ax.scatter(rand_jitter(x), y, c=c)
     ax.set_xticks([0, 0.2])
     ax.set_xticklabels(['Control', 'Trauma'])
     ax.set_ylabel('Mean reactivation rate')
